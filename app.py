@@ -1,15 +1,15 @@
 from flask import Flask, request
 import datetime
 import os
+import requests  # ⬅️ tambah ini
 
 app = Flask(__name__)
 
 LOG_FILE = "logs.txt"
-SECRET_KEY = "kaze123"  # ganti sesuai keinginan
+SECRET_KEY = "kaze123"
 
-# =========================
-# Endpoint Logger
-# =========================
+WEBHOOK_URL = "https://discord.com/api/v10/webhooks/1442080509587886112/BkLaXIlaozElIt6EXyPuCFTM4GlKbLeBf9tLhGvIThXJze22NqURKDi1uZR8fkk0lIwH"
+
 @app.route("/log")
 def log():
     key = request.args.get("key")
@@ -24,49 +24,23 @@ def log():
 
     log_line = f"[{time}] IP: {ip} | DATA: {data}\n"
 
+    # simpan ke file
     with open(LOG_FILE, "a") as f:
         f.write(log_line)
 
+    # =========================
+    # 🔥 DISCORD WEBHOOK
+    # =========================
+    if data.get("action") == "Growlauncher":
+        try:
+            payload = {
+                "content": f"🚀 **Growlauncher Triggered!**\n"
+                           f"IP: {ip}\n"
+                           f"Data: {data}\n"
+                           f"Time: {time}"
+            }
+            requests.post(WEBHOOK_URL, json=payload, timeout=5)
+        except Exception as e:
+            print("Webhook error:", e)
+
     return "LOGGED"
-
-
-# =========================
-# Console Viewer
-# =========================
-@app.route("/")
-def index():
-    if not os.path.exists(LOG_FILE):
-        open(LOG_FILE, "w").close()
-
-    with open(LOG_FILE, "r") as f:
-        logs = f.read()
-
-    return f"""
-    <html>
-    <head>
-        <title>Logger Console</title>
-        <meta http-equiv="refresh" content="2">
-        <style>
-            body {{
-                background: #0d1117;
-                color: #00ff88;
-                font-family: monospace;
-                padding: 20px;
-            }}
-        </style>
-    </head>
-    <body>
-        <h2>🖥️ Logger Console</h2>
-        <p>Endpoint: /log?key={SECRET_KEY}</p>
-        <pre>{logs if logs else "No logs yet..."}</pre>
-    </body>
-    </html>
-    """
-
-
-# =========================
-# Run (Railway Compatible)
-# =========================
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
